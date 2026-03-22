@@ -2,7 +2,7 @@
 
 A lightweight CLI tool for testing websites on a new server IP without changing DNS.
 
-## ? Features
+## Features
 
 * Temporary `/etc/hosts` override
 * Smart HTTP/HTTPS detection
@@ -11,19 +11,19 @@ A lightweight CLI tool for testing websites on a new server IP without changing 
 * Terminal browser preview (elinks / w3m)
 * Auto cleanup after exit
 
-## ?? Requirements
+## Requirements
 
 * curl
 * elinks
 * (optional) w3m
 
-## ?? Usage
+## Usage
 
 ```bash
 sudo bash staging-tester.sh
 ```
 
-## ?? How it works
+## How it works
 
 1. Injects temporary hosts entry
 2. Tests HTTP/HTTPS using curl (--resolve)
@@ -31,12 +31,12 @@ sudo bash staging-tester.sh
 4. Opens best version in terminal browser
 5. Cleans up automatically
 
-## ?? Notes
+## Notes
 
 * Requires root privileges
 * Does not persist hosts changes
 * Designed for staging/debug environments
 
-## ?? License
+## License
 
 MIT
