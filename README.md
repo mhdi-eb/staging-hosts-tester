@@ -1,6 +1,6 @@
 # Staging Hosts Tester
 
-A lightweight CLI tool for testing websites on a new server IP without changing DNS.
+A lightweight CLI tool for testing websites on a new server IP without changing DNS in linux terminal.
 
 ## Features
 
