@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==================================================
-# STAGING HOSTS TESTER v2
+# STAGING HOSTS TESTER v3 (Production Ready)
 # ==================================================
 
 # ===== Colors =====
@@ -13,102 +13,163 @@ BLUE="\e[34m"
 RESET="\e[0m"
 
 # ===== Root Check =====
-if [[ $EUID -ne 0 ]]; then
-    echo -e "${RED}[ERROR] Run as root (sudo)${RESET}"
-    exit 1
-fi
+[[ $EUID -ne 0 ]] && { echo -e "${RED}[ERROR] Run as root${RESET}"; exit 1; }
 
 HOSTS_FILE="/etc/hosts"
 TAG="# STAGING_TEMP_ENTRY"
 
 # ==================================================
-# CLEANUP (safe + precise)
+# LOCK (prevent concurrent runs)
+# ==================================================
+LOCK_FILE="/tmp/staging-hosts.lock"
+exec 200>$LOCK_FILE
+flock -n 200 || { echo -e "${RED}[ERROR] Another instance is running${RESET}"; exit 1; }
+
+# ==================================================
+# CLEANUP
 # ==================================================
 cleanup() {
     grep -v "$TAG" "$HOSTS_FILE" > /tmp/hosts.tmp && mv /tmp/hosts.tmp "$HOSTS_FILE"
 }
-
 trap cleanup EXIT INT TERM
 
 # ==================================================
-# VALIDATORS (robust)
+# VALIDATORS
 # ==================================================
 validate_ip() {
     local ip=$(echo "$1" | tr -d '[:space:]')
-    [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+
+    [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+
+    IFS='.' read -r o1 o2 o3 o4 <<< "$ip"
+    for o in $o1 $o2 $o3 $o4; do
+        ((o < 0 || o > 255)) && return 1
+    done
+
+    return 0
 }
 
 validate_domain() {
-    local domain=$(echo "$1" | tr -d '[:space:]')
-    [[ $domain =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+    [[ "$1" =~ ^([a-zA-Z0-9](([a-zA-Z0-9-]*[a-zA-Z0-9])?)\.)+[a-zA-Z]{2,}$ ]]
 }
 
 # ==================================================
-# INPUT SAFE LOOP (IP)
+# SANITIZE INPUT
 # ==================================================
-attempt=0
+sanitize_domain() {
+    local d="$1"
+
+    # remove protocol
+    d=${d#*://}
+
+    # remove path
+    d=${d%%/*}
+
+    # remove port
+    d=${d%%:*}
+
+    # remove leading www
+    [[ $d == www.* ]] && d=${d#www.}
+
+    # remove wildcard
+    [[ $d == \*.* ]] && d=${d#*.}
+
+    # trim spaces
+    d=${d//[[:space:]]/}
+
+    echo "$d"
+}
+
+# ==================================================
+# DNS REPORT (non-blocking)
+# ==================================================
+dns_report() {
+    local d="$1"
+
+    echo -e "${CYAN}[DNS INFO]${RESET}"
+
+    A=$(dig +short A "$d")
+    [[ -n "$A" ]] && echo -e "A: ${GREEN}$A${RESET}" || echo -e "A: ${RED}None${RESET}"
+
+    AAAA=$(dig +short AAAA "$d")
+    [[ -n "$AAAA" ]] && echo -e "AAAA: ${GREEN}$AAAA${RESET}"
+
+    CNAME=$(dig +short CNAME "$d")
+    [[ -n "$CNAME" ]] && echo -e "CNAME: ${GREEN}$CNAME${RESET}"
+
+    NS=$(dig +short NS "$d")
+    [[ -n "$NS" ]] && echo -e "NS: ${GREEN}$NS${RESET}"
+
+    if [[ -z "$A" && -z "$AAAA" ]]; then
+        echo -e "${YELLOW}[WARN] No A/AAAA record${RESET}"
+    else
+        echo -e "${GREEN}[OK] DNS looks fine${RESET}"
+    fi
+
+    echo ""
+}
+
+# ==================================================
+# UPDATE HOSTS (safe)
+# ==================================================
+update_hosts() {
+    cleanup
+    if ! grep -q "$2" "$HOSTS_FILE"; then
+        echo -e "$1\t$2\twww.$2\t$TAG" >> "$HOSTS_FILE"
+    fi
+}
+
+# ==================================================
+# INPUT (IP)
+# ==================================================
 while true; do
     read -p "IP: " ip
     ip=$(echo "$ip" | tr -d '[:space:]')
 
-    ((attempt++))
-
     if validate_ip "$ip"; then
         break
-    fi
-
-    echo -e "${RED}Invalid IP format!${RESET}"
-
-    if [[ $attempt -ge 3 ]]; then
-        echo -e "${RED}Too many invalid attempts${RESET}"
-        exit 1
+    else
+        echo -e "${RED}Invalid IP format!${RESET}"
     fi
 done
 
-# reset attempt
-attempt=0
-
 # ==================================================
-# INPUT SAFE LOOP (DOMAIN)
+# INPUT (DOMAIN)
 # ==================================================
 while true; do
     read -p "Domain: " domain
-    domain=$(echo "$domain" | tr -d '[:space:]')
 
-    ((attempt++))
+    domain=$(sanitize_domain "$domain")
 
     if validate_domain "$domain"; then
         break
-    fi
-
-    echo -e "${RED}Invalid domain format!${RESET}"
-
-    if [[ $attempt -ge 3 ]]; then
-        echo -e "${RED}Too many invalid attempts${RESET}"
-        exit 1
+    else
+        echo -e "${RED}Invalid domain format!${RESET}"
     fi
 done
 
 # ==================================================
-# HOSTS SETUP (safe + no duplicates)
+# DNS CHECK
 # ==================================================
-cleanup
-echo "$ip $domain www.$domain $TAG" >> "$HOSTS_FILE"
-echo -e "${GREEN}[+] Hosts updated${RESET}"
+dns_report "$domain"
 
 # ==================================================
-# CURL TESTS (correct + timeout safe)
+# HOSTS SETUP
 # ==================================================
+update_hosts "$ip" "$domain"
+echo -e "${GREEN}[+] Hosts updated${RESET}"
 
 HTTP_URL="http://$domain"
 HTTPS_URL="https://$domain"
 
-echo ""
+# ==================================================
+# CURL TESTS
+# ==================================================
 echo -e "${BLUE}[+] Testing HTTP...${RESET}"
 http_code=$(curl -o /dev/null -s -m 5 -w "%{http_code}" \
     --resolve $domain:80:$ip $HTTP_URL)
 
-echo -e "${YELLOW}HTTP code: $http_code${RESET}"
+echo -e "${YELLOW}HTTP: $http_code${RESET}"
 
 echo -e "${BLUE}[+] Testing HTTPS...${RESET}"
 https_code=$(curl -o /dev/null -s -m 5 -w "%{http_code}" \
@@ -121,15 +182,7 @@ echo -e "${YELLOW}HTTPS strict: $https_code${RESET}"
 echo -e "${YELLOW}HTTPS insecure: $https_insecure${RESET}"
 
 # ==================================================
-# SSL DEBUG (important fix)
-# ==================================================
-echo ""
-echo -e "${CYAN}[SSL DEBUG]${RESET}"
-ssl_debug=$(curl -Iv --resolve $domain:443:$ip https://$domain 2>&1 | tail -n 8)
-echo "$ssl_debug"
-
-# ==================================================
-# DECISION ENGINE (improved logic)
+# DECISION ENGINE
 # ==================================================
 USE_URL="$HTTP_URL"
 BROWSER="elinks"
@@ -148,30 +201,28 @@ else
 fi
 
 # ==================================================
-# OUTPUT RESULT
+# RESULT
 # ==================================================
 echo ""
-echo -e "${CYAN}============================${RESET}"
-echo -e "${CYAN}Decision Engine${RESET}"
-echo -e "${CYAN}============================${RESET}"
-
-echo -e "URL     : ${GREEN}$USE_URL${RESET}"
-echo -e "Browser : ${GREEN}$BROWSER${RESET}"
-echo -e "Reason  : ${YELLOW}$REASON${RESET}"
+echo -e "${CYAN}=== RESULT ===${RESET}"
+echo -e "URL: ${GREEN}$USE_URL${RESET}"
+echo -e "Browser: ${GREEN}$BROWSER${RESET}"
+echo -e "Reason: ${YELLOW}$REASON${RESET}"
 
 # ==================================================
-# OPEN BROWSER
+# OPEN (safe)
 # ==================================================
 read -p "Press Enter to open..."
 
-if [[ "$BROWSER" == "elinks" ]]; then
-    elinks "$USE_URL"
+if command -v "$BROWSER" >/dev/null 2>&1; then
+    $BROWSER "$USE_URL"
 else
-    w3m "$USE_URL"
+    echo -e "${RED}[WARN] $BROWSER not found → using curl${RESET}"
+    curl -I "$USE_URL" --resolve "$domain:443:$ip" -m 5
 fi
 
 # ==================================================
-# CLEANUP AFTER RUN
+# CLEANUP END
 # ==================================================
 cleanup
 echo -e "${GREEN}[+] Hosts entry removed${RESET}"
