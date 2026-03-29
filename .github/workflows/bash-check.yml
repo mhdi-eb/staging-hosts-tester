@@ -1,0 +1,23 @@
+name: Bash Script Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install ShellCheck
+      run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+    - name: Run ShellCheck
+      run: shellcheck staging-tester.sh
+
+    - name: Bash Syntax Check
+      run: bash -n staging-tester.sh
