@@ -40,3 +40,25 @@ Install on Debian/Ubuntu:
 ```bash
 sudo apt update
 sudo apt install curl elinks w3m
+````
+
+## Usage
+```bash
+sudo bash staging-tester.sh
+
+````
+
+## How It Works
+Get target IP and domain
+Validate input with retry protection
+Inject temporary hosts entry
+Send requests using curl --resolve
+Test:
+HTTP
+HTTPS (strict)
+HTTPS (insecure)
+Detect SSL and availability issues
+Suggest best access method
+Launch terminal browser
+Cleanup hosts automatically
+
