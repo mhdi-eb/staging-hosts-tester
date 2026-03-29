@@ -6,7 +6,7 @@ A lightweight CLI tool for testing websites on a specific server IP without modi
 
 ## 📥 Download
 
-👉 [Download Latest Version (v2.0.0)](https://github.com/mhdi-eb/staging-hosts-tester/releases/tag/v2.0.0)
+👉 [Download Latest Version (v2.0.0)](https://github.com/mhdi-eb/staging-hosts-tester/releases/download/v2.0.0/STAGING.TESTER.v2.sh)
 
 ---
 
