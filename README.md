@@ -1,42 +1,42 @@
 # Staging Hosts Tester
 
-A lightweight CLI tool for testing websites on a new server IP without changing DNS in linux terminal.
+A lightweight CLI tool for testing websites on a specific server IP without modifying DNS records.
 
-## Features
+---
 
-* Temporary `/etc/hosts` override
-* Smart HTTP/HTTPS detection
-* SSL/SNI issue detection
-* Automatic fallback (HTTP / w3m)
-* Terminal browser preview (elinks / w3m)
-* Auto cleanup after exit
+##  Overview
 
-## Requirements
+This tool allows you to test a domain against a new server IP before DNS propagation by temporarily overriding routing and directly testing HTTP/HTTPS behavior.
 
-* curl
-* elinks
-* (optional) w3m
+Designed for staging, migration, and debugging environments.
 
-## Usage
+---
+
+##  Features (v2)
+
+- Temporary `/etc/hosts` override
+- Direct IP testing using `curl --resolve`
+- Smart HTTP / HTTPS detection
+- SSL / SNI issue detection
+- Automatic fallback (HTTPS → HTTP)
+- Terminal browser preview (`elinks` / `w3m`)
+- Interactive browser selection
+- Default selection with Enter key
+- Retry logic for input validation
+- Timeout handling
+- Clean and structured output
+- Automatic cleanup after execution
+
+---
+
+##  Requirements
+
+- curl
+- elinks
+- w3m (optional)
+
+Install on Debian/Ubuntu:
 
 ```bash
-sudo bash staging-tester.sh
-```
-
-## How it works
-
-1. Injects temporary hosts entry
-2. Tests HTTP/HTTPS using curl (--resolve)
-3. Detects SSL issues
-4. Opens best version in terminal browser
-5. Cleans up automatically
-
-## Notes
-
-* Requires root privileges
-* Does not persist hosts changes
-* Designed for staging/debug environments
-
-## License
-
-MIT
+sudo apt update
+sudo apt install curl elinks w3m
