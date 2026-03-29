@@ -58,7 +58,7 @@ sanitize_domain() {
 
 attempt=1
 while (( attempt <= MAX_RETRY )); do
-    read -p "Target IP: " ip
+   read -r -p "Target IP: " ip
     ip=$(echo "$ip" | xargs)
 
     if validate_ip "$ip"; then
@@ -79,7 +79,7 @@ done
 
 attempt=1
 while (( attempt <= MAX_RETRY )); do
-    read -p "Target Domain: " raw
+    read -r -p "Target Domain: " raw
     domain=$(sanitize_domain "$raw")
 
     if validate_domain "$domain"; then
@@ -169,7 +169,7 @@ echo -e "URL: ${GREEN}$USE_URL${RESET}"
 echo -e "Browser: ${GREEN}$BROWSER${RESET}"
 echo -e "Reason: ${YELLOW}$REASON${RESET}"
 
-read -p "Press Enter to launch..."
+read -r -p "Press Enter to launch..."
 
 
 # LAUNCH
