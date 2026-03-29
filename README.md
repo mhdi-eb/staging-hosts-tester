@@ -2,6 +2,12 @@
 
 A lightweight CLI tool for testing websites on a specific server IP without modifying DNS records.
 
+------
+
+## 📥 Download
+
+👉 [Download Latest Version (v2.0.0)](https://github.com/mhdi-eb/staging-hosts-tester/releases/tag/v2.0.0)
+
 ---
 
 ##  Overview
